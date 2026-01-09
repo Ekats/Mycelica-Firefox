@@ -29,7 +29,7 @@ Capture web pages to your local [Mycelica](https://github.com/Ekats/Mycelica) kn
 
 ## Status
 
-🚧 **Early development** — Requires HTTP endpoints in Mycelica Tauri app (not yet implemented).
+✅ **Working** — Requires Mycelica v0.7.2+ running locally.
 
 ## License
 
