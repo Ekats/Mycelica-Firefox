@@ -33,4 +33,4 @@ Capture web pages to your local [Mycelica](https://github.com/Ekats/Mycelica) kn
 
 ## License
 
-MIT
+GPL-3.0
