@@ -29,17 +29,8 @@ function connectNative() {
 
 // Send capture request to Mycelica
 async function captureToMycelica(data) {
-  // Try native messaging first
-  const p = connectNative();
-  if (p) {
-    p.postMessage({
-      action: "capture",
-      ...data
-    });
-    return { success: true, method: "native" };
-  }
-  
-  // Fallback: HTTP to local Tauri server
+  // Use HTTP to local Tauri server
+  // (Native messaging disabled - requires additional setup)
   try {
     const response = await fetch("http://localhost:9876/capture", {
       method: "POST",

@@ -63,7 +63,6 @@ GET /status
 
 ## Later
 
-- Auto-capture on dwell time (>30 sec)
 - Native messaging instead of HTTP
 - Highlight text → create edge to existing node
 - Show graph connections in sidebar
