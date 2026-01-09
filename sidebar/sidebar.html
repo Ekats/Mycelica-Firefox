@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0;
+      padding: 12px;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      background: #1a1a2e;
+      color: #eee;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      padding-bottom: 8px;
+      border-bottom: 1px solid #333;
+      margin-bottom: 12px;
+    }
+    
+    .header h1 {
+      margin: 0 0 4px 0;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .status {
+      font-size: 11px;
+      color: #888;
+    }
+    
+    .status.connected { color: #4ade80; }
+    .status.error { color: #f87171; }
+    
+    .search-box {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    
+    .search-box input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background: #252540;
+      color: #eee;
+      font-size: 13px;
+    }
+    
+    .search-box button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #6366f1;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .section {
+      margin-bottom: 16px;
+    }
+    
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+    
+    .node-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+    
+    .node-item {
+      padding: 8px;
+      background: #252540;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    
+    .node-item:hover {
+      background: #303050;
+    }
+    
+    .node-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .node-meta {
+      font-size: 11px;
+      color: #888;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .similarity {
+      color: #4ade80;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: #666;
+    }
+    
+    .current-page {
+      background: #252540;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    
+    .current-page .title {
+      font-weight: 500;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .current-page .url {
+      font-size: 11px;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Mycelica</h1>
+    <div id="status" class="status">Connecting...</div>
+  </div>
+  
+  <div class="current-page">
+    <div class="title" id="page-title">No page loaded</div>
+    <div class="url" id="page-url"></div>
+  </div>
+  
+  <div class="search-box">
+    <input type="text" id="search" placeholder="Search graph...">
+    <button id="search-btn">Go</button>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Related in your graph</div>
+  </div>
+  
+  <div id="results" class="node-list">
+    <div class="empty-state">
+      Navigate to a page to see related nodes
+    </div>
+  </div>
+  
+  <script src="sidebar.js"></script>
+</body>
+</html>
