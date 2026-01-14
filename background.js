@@ -1,38 +1,39 @@
 // Mycelica Firefox Extension - Background Script
-// Handles native messaging to local Mycelica app
+// Handles manual capture and optional auto-tracking
 
-const NATIVE_APP = "com.mycelica.app";
-let port = null;
+const MYCELICA_URL = "http://localhost:9876";
 
-// Connect to native Mycelica app
-function connectNative() {
-  if (port) return port;
-  
-  try {
-    port = browser.runtime.connectNative(NATIVE_APP);
-    
-    port.onMessage.addListener((response) => {
-      console.log("[Mycelica] Response:", response);
-    });
-    
-    port.onDisconnect.addListener(() => {
-      console.log("[Mycelica] Disconnected");
-      port = null;
-    });
-    
-    return port;
-  } catch (e) {
-    console.error("[Mycelica] Connection failed:", e);
-    return null;
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+let config = {
+  autoTrack: {
+    enabled: false,
+    allowedDomains: ["wikipedia.org", "wikimedia.org"],
+    excludedDomains: [],
+    sessionGapMinutes: 30
   }
-}
+};
 
-// Send capture request to Mycelica
+// Load config from storage
+browser.storage.local.get("mycelicaConfig").then(result => {
+  if (result.mycelicaConfig) {
+    config = { ...config, ...result.mycelicaConfig };
+  }
+  // Start auto-tracking if enabled
+  if (config.autoTrack.enabled) {
+    startAutoTracking();
+  }
+});
+
+// =============================================================================
+// MANUAL CAPTURE (existing functionality)
+// =============================================================================
+
 async function captureToMycelica(data) {
-  // Use HTTP to local Tauri server
-  // (Native messaging disabled - requires additional setup)
   try {
-    const response = await fetch("http://localhost:9876/capture", {
+    const response = await fetch(`${MYCELICA_URL}/capture`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
@@ -53,7 +54,7 @@ browser.contextMenus.create({
 
 // Context menu: "Save selection to Mycelica"
 browser.contextMenus.create({
-  id: "save-selection-to-mycelica", 
+  id: "save-selection-to-mycelica",
   title: "Save selection to Mycelica",
   contexts: ["selection"]
 });
@@ -66,15 +67,14 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     content: info.selectionText || "",
     timestamp: Date.now()
   };
-  
+
   if (info.menuItemId === "save-selection-to-mycelica" && info.selectionText) {
     data.content = info.selectionText;
     data.title = `Selection from: ${tab.title}`;
   }
-  
+
   const result = await captureToMycelica(data);
-  
-  // Notify user
+
   if (result.success) {
     browser.notifications.create({
       type: "basic",
@@ -83,36 +83,349 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     });
   } else {
     browser.notifications.create({
-      type: "basic", 
+      type: "basic",
       title: "Mycelica - Error",
       message: `Failed to save: ${result.error}`
     });
   }
 });
 
-// Listen for messages from popup/sidebar
+// =============================================================================
+// AUTO-TRACKING (Holerabbit)
+// =============================================================================
+
+// Per-tab state for navigation tracking
+const tabState = new Map(); // tabId -> { lastUrl, lastTimestamp, history[] }
+
+// Session tracking
+let currentSession = {
+  id: null,
+  name: null,
+  startTime: null,
+  pageCount: 0,
+  paused: false
+};
+
+function isDomainAllowed(url) {
+  try {
+    const hostname = new URL(url).hostname;
+
+    // Check exclusions first
+    for (const domain of config.autoTrack.excludedDomains) {
+      if (hostname.includes(domain)) return false;
+    }
+
+    // If allowedDomains is empty, allow all (except excluded)
+    if (config.autoTrack.allowedDomains.length === 0) return true;
+
+    // Check allowed list
+    for (const domain of config.autoTrack.allowedDomains) {
+      if (hostname.includes(domain)) return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function getNavigationType(tabId, currentUrl) {
+  const state = tabState.get(tabId);
+  if (!state || !state.lastUrl) return "searched";
+
+  // Check if backtracking
+  const historyIndex = state.history.findIndex(h => h.url === currentUrl);
+  if (historyIndex !== -1 && historyIndex < state.history.length - 1) {
+    return "backtracked";
+  }
+
+  // If we have a previous URL in this tab, it's likely a click
+  if (state.lastUrl) {
+    return "clicked";
+  }
+
+  return "searched";
+}
+
+// Generate session ID
+function generateSessionId() {
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Sync with app's live session
+async function syncLiveSession() {
+  try {
+    const response = await fetch(`${MYCELICA_URL}/holerabbit/live`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.session) {
+        // App has a live session - use it
+        currentSession.id = data.session.id;
+        currentSession.name = data.session.title;
+        currentSession.startTime = data.session.start_time;
+        currentSession.pageCount = data.session.item_count || 0;
+        currentSession.paused = data.session.status === "paused";
+        console.log("[Mycelica] Synced with app's live session:", data.session.id);
+        return true;
+      }
+    }
+  } catch (e) {
+    console.debug("[Mycelica] Could not sync live session:", e);
+  }
+  return false;
+}
+
+async function recordVisit(details) {
+  if (!config.autoTrack.enabled) return;
+  if (currentSession.paused) return;
+  if (!isDomainAllowed(details.url)) return;
+
+  const tabId = details.tabId;
+  const now = Date.now();
+
+  // Sync with app's live session first
+  await syncLiveSession();
+
+  // If still paused after sync, skip
+  if (currentSession.paused) return;
+
+  // Get or create tab state
+  const state = tabState.get(tabId) || { lastUrl: null, lastTimestamp: null, history: [] };
+
+  // Only create new session if none exists (app's live session takes priority)
+  if (!currentSession.id) {
+    // Check for session gap
+    if (state.lastTimestamp) {
+      const gapMs = now - state.lastTimestamp;
+      const gapMinutes = gapMs / (1000 * 60);
+      if (gapMinutes > config.autoTrack.sessionGapMinutes) {
+        currentSession = { id: generateSessionId(), name: null, startTime: now, pageCount: 0, paused: false };
+      }
+    } else {
+      currentSession = { id: generateSessionId(), name: null, startTime: now, pageCount: 0, paused: false };
+    }
+  }
+
+  // Calculate dwell time on previous page
+  const dwellTime = state.lastTimestamp ? now - state.lastTimestamp : 0;
+
+  // Determine navigation type (before updating state)
+  const navType = getNavigationType(tabId, details.url);
+
+  const payload = {
+    url: details.url,
+    referrer: (navType === "clicked" || navType === "backtracked") ? state.lastUrl : null,
+    timestamp: now,
+    tab_id: tabId,
+    session_id: currentSession.id,
+    navigation_type: navType,
+    previous_dwell_time_ms: dwellTime,
+    session_gap_minutes: config.autoTrack.sessionGapMinutes
+  };
+
+  // Try to get page title
+  try {
+    const tab = await browser.tabs.get(tabId);
+    if (tab) {
+      payload.title = tab.title;
+    }
+  } catch (e) {
+    console.debug("[Mycelica] Could not get tab info:", e);
+  }
+
+  // Update tab state
+  state.lastUrl = details.url;
+  state.lastTimestamp = now;
+  state.history.push({ url: details.url, timestamp: now });
+  if (state.history.length > 100) state.history.shift();
+  tabState.set(tabId, state);
+
+  // Update session
+  currentSession.pageCount++;
+
+  // Send to backend
+  try {
+    const response = await fetch(`${MYCELICA_URL}/holerabbit/visit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+
+      // Capture session name from backend
+      if (data.session_name) {
+        currentSession.name = data.session_name;
+      }
+
+      // If backend created new session (old one was deleted), reset local state
+      if (data.is_new_session) {
+        currentSession.id = data.session_id;
+        currentSession.name = data.session_name || null;
+        currentSession.startTime = now;
+        currentSession.pageCount = 1;
+        currentSession.paused = false;
+        console.log("[Mycelica] Session reset - backend created new:", data.session_id);
+      }
+    } else {
+      console.warn("[Mycelica] Auto-track backend error:", response.status);
+    }
+  } catch (e) {
+    console.debug("[Mycelica] Auto-track backend not available");
+  }
+}
+
+// Navigation listener (only added when auto-tracking enabled)
+let navigationListener = null;
+
+function startAutoTracking() {
+  if (navigationListener) return; // Already started
+
+  navigationListener = (details) => {
+    if (details.frameId === 0) { // Main frame only
+      recordVisit(details);
+    }
+  };
+
+  browser.webNavigation.onCompleted.addListener(
+    navigationListener,
+    { url: [{ schemes: ["http", "https"] }] }
+  );
+
+  console.log("[Mycelica] Auto-tracking started");
+}
+
+function stopAutoTracking() {
+  if (navigationListener) {
+    browser.webNavigation.onCompleted.removeListener(navigationListener);
+    navigationListener = null;
+    console.log("[Mycelica] Auto-tracking stopped");
+  }
+}
+
+// Clean up closed tabs
+browser.tabs.onRemoved.addListener((tabId) => {
+  tabState.delete(tabId);
+});
+
+// =============================================================================
+// MESSAGE HANDLING
+// =============================================================================
+
 browser.runtime.onMessage.addListener(async (message, sender) => {
+  // Manual capture
   if (message.action === "capture") {
     return captureToMycelica(message.data);
   }
-  
+
+  // Search
   if (message.action === "search") {
-    // Query Mycelica for similar nodes
     try {
-      const response = await fetch(`http://localhost:9876/search?q=${encodeURIComponent(message.query)}`);
+      const response = await fetch(`${MYCELICA_URL}/search?q=${encodeURIComponent(message.query)}`);
       return await response.json();
     } catch (e) {
       return { error: e.message };
     }
   }
-  
+
+  // Status check
   if (message.action === "status") {
-    // Check if Mycelica is running
     try {
-      const response = await fetch("http://localhost:9876/status");
-      return { connected: true };
+      const response = await fetch(`${MYCELICA_URL}/status`);
+      const data = await response.json();
+
+      // Sync with app's live session
+      if (config.autoTrack.enabled) {
+        await syncLiveSession();
+      }
+
+      return {
+        connected: true,
+        autoTrack: config.autoTrack.enabled,
+        session: {
+          id: currentSession.id,
+          name: currentSession.name,
+          startTime: currentSession.startTime,
+          pageCount: currentSession.pageCount,
+          paused: currentSession.paused
+        }
+      };
     } catch (e) {
       return { connected: false };
+    }
+  }
+
+  // Get config
+  if (message.action === "getConfig") {
+    return config;
+  }
+
+  // Set config
+  if (message.action === "setConfig") {
+    const wasEnabled = config.autoTrack.enabled;
+    config = { ...config, ...message.config };
+    browser.storage.local.set({ mycelicaConfig: config });
+
+    // Handle auto-tracking toggle
+    if (config.autoTrack.enabled && !wasEnabled) {
+      startAutoTracking();
+    } else if (!config.autoTrack.enabled && wasEnabled) {
+      stopAutoTracking();
+    }
+
+    return { success: true };
+  }
+
+  // Get session info
+  if (message.action === "getSession") {
+    return {
+      ...currentSession,
+      enabled: config.autoTrack.enabled
+    };
+  }
+
+  // Pause session
+  if (message.action === "pauseSession") {
+    if (!currentSession.id) {
+      return { success: false, error: "No active session" };
+    }
+
+    try {
+      const response = await fetch(`${MYCELICA_URL}/holerabbit/session/${currentSession.id}/pause`, {
+        method: "POST"
+      });
+      if (response.ok) {
+        currentSession.paused = true;
+        return { success: true, paused: true };
+      }
+      return { success: false, error: "Backend error" };
+    } catch (e) {
+      // Backend may not support this yet, just pause locally
+      currentSession.paused = true;
+      return { success: true, paused: true };
+    }
+  }
+
+  // Resume session
+  if (message.action === "resumeSession") {
+    if (!currentSession.id) {
+      return { success: false, error: "No active session" };
+    }
+
+    try {
+      const response = await fetch(`${MYCELICA_URL}/holerabbit/session/${currentSession.id}/resume`, {
+        method: "POST"
+      });
+      if (response.ok) {
+        currentSession.paused = false;
+        return { success: true, paused: false };
+      }
+      return { success: false, error: "Backend error" };
+    } catch (e) {
+      // Backend may not support this yet, just resume locally
+      currentSession.paused = false;
+      return { success: true, paused: false };
     }
   }
 });

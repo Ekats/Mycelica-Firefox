@@ -12,7 +12,7 @@
       color: #eee;
       margin: 0;
     }
-    
+
     .header {
       display: flex;
       align-items: center;
@@ -21,29 +21,42 @@
       padding-bottom: 8px;
       border-bottom: 1px solid #333;
     }
-    
+
     .header h1 {
       margin: 0;
       font-size: 16px;
       font-weight: 500;
+      flex: 1;
     }
-    
+
     .status {
       font-size: 12px;
       padding: 4px 8px;
       border-radius: 4px;
     }
-    
+
     .status.connected { background: #1a472a; color: #4ade80; }
     .status.disconnected { background: #4a1a1a; color: #f87171; }
-    
+
+    .settings-btn {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 12px;
+      width: auto;
+      margin: 0;
+    }
+    .settings-btn:hover { color: #eee; }
+
     .current-page {
       background: #252540;
       padding: 10px;
       border-radius: 6px;
       margin-bottom: 12px;
     }
-    
+
     .current-page .title {
       font-weight: 500;
       margin-bottom: 4px;
@@ -51,7 +64,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    
+
     .current-page .url {
       font-size: 12px;
       color: #888;
@@ -59,7 +72,143 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    
+
+    /* Session status section */
+    .session-section {
+      background: #252540;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .session-section.visible { display: block; }
+
+    .session-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .session-header:hover { background: #2a2a4a; }
+
+    .session-header .label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .session-header .tracking-badge {
+      background: #1a472a;
+      color: #4ade80;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .session-header .chevron {
+      color: #666;
+      transition: transform 0.2s;
+    }
+
+    .session-header.expanded .chevron { transform: rotate(180deg); }
+
+    .session-content {
+      padding: 0 10px 10px;
+      display: none;
+    }
+
+    .session-content.visible { display: block; }
+
+    .session-stats {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+    }
+
+    .session-stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .session-stat .value {
+      font-size: 18px;
+      font-weight: 500;
+      color: #6366f1;
+    }
+
+    .session-stat .label {
+      color: #888;
+    }
+
+    .session-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #333;
+    }
+
+    .session-btn {
+      flex: 1;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .session-btn.pause {
+      background: #4a3a1a;
+      color: #fbbf24;
+    }
+    .session-btn.pause:hover { background: #5a4a2a; }
+
+    .session-btn.resume {
+      background: #1a472a;
+      color: #4ade80;
+    }
+    .session-btn.resume:hover { background: #2a573a; }
+
+    .session-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .session-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #eee;
+      margin-bottom: 8px;
+    }
+
+    .session-id {
+      font-size: 10px;
+      color: #555;
+      margin-top: 8px;
+      font-family: monospace;
+    }
+
+    .paused-badge {
+      background: #4a3a1a;
+      color: #fbbf24;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-left: 6px;
+    }
+
     button {
       width: 100%;
       padding: 10px;
@@ -71,10 +220,15 @@
       cursor: pointer;
       margin-bottom: 8px;
     }
-    
+
     button:hover { background: #4f46e5; }
     button:disabled { background: #333; cursor: not-allowed; }
-    
+
+    button.secondary {
+      background: #333;
+    }
+    button.secondary:hover { background: #444; }
+
     .note-input {
       width: 100%;
       padding: 8px;
@@ -88,7 +242,7 @@
       resize: vertical;
       min-height: 60px;
     }
-    
+
     .note-input::placeholder { color: #666; }
   </style>
 </head>
@@ -96,18 +250,49 @@
   <div class="header">
     <h1>Mycelica</h1>
     <span id="status" class="status disconnected">Checking...</span>
+    <button class="settings-btn" id="open-settings" title="Settings">Settings</button>
   </div>
-  
+
+  <!-- Session status (visible when auto-tracking enabled) -->
+  <div class="session-section" id="session-section">
+    <div class="session-header" id="session-header">
+      <span class="label">
+        <span class="tracking-badge">Auto-tracking</span>
+        Current session
+        <span class="paused-badge" id="paused-badge" style="display:none;">Paused</span>
+      </span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="session-content" id="session-content">
+      <div class="session-name" id="session-name"></div>
+      <div class="session-stats">
+        <div class="session-stat">
+          <span class="value" id="session-duration">--</span>
+          <span class="label">duration</span>
+        </div>
+        <div class="session-stat">
+          <span class="value" id="session-pages">0</span>
+          <span class="label">pages</span>
+        </div>
+      </div>
+      <div class="session-controls">
+        <button class="session-btn pause" id="pause-btn">Pause</button>
+        <button class="session-btn resume" id="resume-btn" style="display:none;">Resume</button>
+      </div>
+      <div class="session-id" id="session-id"></div>
+    </div>
+  </div>
+
   <div class="current-page">
     <div class="title" id="page-title">Loading...</div>
     <div class="url" id="page-url"></div>
   </div>
-  
+
   <textarea id="note" class="note-input" placeholder="Add a note (optional)..."></textarea>
-  
+
   <button id="save-page">Save Page to Graph</button>
-  <button id="open-sidebar">Open Sidebar</button>
-  
+  <button id="open-sidebar" class="secondary">Open Sidebar</button>
+
   <script src="popup.js"></script>
 </body>
 </html>

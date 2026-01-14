@@ -8,22 +8,48 @@ Mycelica Firefox Extension — captures web pages to local Mycelica graph.
 Firefox Extension  ──HTTP──►  Mycelica Tauri (localhost:9876)
      │                              │
      ├─ background.js               ├─ /capture (POST)
-     ├─ popup/                      ├─ /search (GET)
-     └─ sidebar/                    └─ /status (GET)
+     │   ├─ manual capture          ├─ /holerabbit/visit (POST)
+     │   └─ auto-tracking           ├─ /search (GET)
+     ├─ popup/                      └─ /status (GET)
+     ├─ sidebar/
+     └─ settings/
 ```
 
 Extension talks to running Mycelica app over HTTP. No cloud, no accounts.
+
+## Features
+
+1. **Manual Capture** — Right-click or popup to save pages
+2. **Auto-tracking** (opt-in) — Automatically track browsing on allowed domains
+   - Per-tab navigation tracking (clicked/searched/backtracked)
+   - Session management with configurable gap
+   - Default: Wikipedia only, OFF by default
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `manifest.json` | Extension config, permissions |
-| `background.js` | Native messaging, context menus, message routing |
-| `popup/popup.html` | Quick capture UI |
+| `background.js` | Manual capture + auto-tracking module |
+| `popup/popup.html` | Quick capture UI + session status |
 | `popup/popup.js` | Popup logic |
 | `sidebar/sidebar.html` | Related nodes panel |
 | `sidebar/sidebar.js` | Tab tracking, similarity search |
+| `settings/settings.html` | Auto-tracking configuration |
+| `settings/settings.js` | Settings logic |
+
+## Configuration
+
+```javascript
+config = {
+  autoTrack: {
+    enabled: false,                              // OFF by default
+    allowedDomains: ["wikipedia.org", "wikimedia.org"],
+    excludedDomains: [],
+    sessionGapMinutes: 30
+  }
+}
+```
 
 ## Development
 
@@ -35,38 +61,32 @@ about:debugging → This Firefox → Load Temporary Add-on → select manifest.j
 Ctrl+Shift+J → Browser Console → filter "Mycelica"
 ```
 
-## Mycelica Backend Requirements
+## Backend Endpoints
 
-The Tauri app needs these HTTP endpoints (not yet implemented):
-
-```rust
-// In src-tauri, add HTTP server or use existing Tauri invoke
-
+```
 POST /capture
   Body: { title, url, content, timestamp }
   Returns: { success: true, nodeId: "..." }
+
+POST /holerabbit/visit
+  Body: { url, referrer, timestamp, tab_id, navigation_type,
+          previous_dwell_time_ms, session_gap_minutes, title? }
+  Returns: { success: true }
 
 GET /search?q=<query>
   Returns: { results: [{ id, title, type, similarity }] }
 
 GET /status
-  Returns: { connected: true }
+  Returns: { connected: true, version: "..." }
 ```
 
-## MVP TODO
+## TODO
 
-1. [ ] Add HTTP server to Mycelica Tauri app (port 9876)
-2. [ ] Implement `/capture` endpoint
-3. [ ] Implement `/search` endpoint  
-4. [ ] Test context menu "Save to Mycelica"
-5. [ ] Test sidebar related nodes
-
-## Later
-
-- Native messaging instead of HTTP
-- Highlight text → create edge to existing node
-- Show graph connections in sidebar
-- Firefox Add-ons store submission
+- [ ] Implement `/holerabbit/visit` endpoint in Mycelica backend
+- [ ] Native messaging instead of HTTP
+- [ ] Highlight text → create edge to existing node
+- [ ] Show graph connections in sidebar
+- [ ] Firefox Add-ons store submission
 
 ## Constraints
 
@@ -74,3 +94,4 @@ GET /status
 - No external dependencies in extension
 - All storage is in Mycelica, extension is stateless
 - Works offline (local Mycelica only)
+- Auto-tracking OFF by default, opt-in only
