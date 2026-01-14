@@ -1,4 +1,4 @@
-// Mycelica Firefox Extension - Background Script
+// Holerabbit Firefox Extension - Background Script
 // Handles manual capture and optional auto-tracking
 
 const MYCELICA_URL = "http://localhost:9876";
@@ -45,17 +45,17 @@ async function captureToMycelica(data) {
   }
 }
 
-// Context menu: "Save to Mycelica"
+// Context menu: "Save to Holerabbit"
 browser.contextMenus.create({
   id: "save-to-mycelica",
-  title: "Save to Mycelica",
+  title: "Save to Holerabbit",
   contexts: ["page", "selection", "link"]
 });
 
-// Context menu: "Save selection to Mycelica"
+// Context menu: "Save selection to Holerabbit"
 browser.contextMenus.create({
   id: "save-selection-to-mycelica",
-  title: "Save selection to Mycelica",
+  title: "Save selection to Holerabbit",
   contexts: ["selection"]
 });
 
@@ -78,13 +78,13 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   if (result.success) {
     browser.notifications.create({
       type: "basic",
-      title: "Mycelica",
+      title: "Holerabbit",
       message: `Saved: ${data.title.slice(0, 50)}...`
     });
   } else {
     browser.notifications.create({
       type: "basic",
-      title: "Mycelica - Error",
+      title: "Holerabbit - Error",
       message: `Failed to save: ${result.error}`
     });
   }
@@ -165,12 +165,12 @@ async function syncLiveSession() {
         currentSession.startTime = data.session.start_time;
         currentSession.pageCount = data.session.item_count || 0;
         currentSession.paused = data.session.status === "paused";
-        console.log("[Mycelica] Synced with app's live session:", data.session.id);
+        console.log("[Holerabbit] Synced with app's live session:", data.session.id);
         return true;
       }
     }
   } catch (e) {
-    console.debug("[Mycelica] Could not sync live session:", e);
+    console.debug("[Holerabbit] Could not sync live session:", e);
   }
   return false;
 }
@@ -230,7 +230,7 @@ async function recordVisit(details) {
       payload.title = tab.title;
     }
   } catch (e) {
-    console.debug("[Mycelica] Could not get tab info:", e);
+    console.debug("[Holerabbit] Could not get tab info:", e);
   }
 
   // Update tab state
@@ -266,13 +266,13 @@ async function recordVisit(details) {
         currentSession.startTime = now;
         currentSession.pageCount = 1;
         currentSession.paused = false;
-        console.log("[Mycelica] Session reset - backend created new:", data.session_id);
+        console.log("[Holerabbit] Session reset - backend created new:", data.session_id);
       }
     } else {
-      console.warn("[Mycelica] Auto-track backend error:", response.status);
+      console.warn("[Holerabbit] Auto-track backend error:", response.status);
     }
   } catch (e) {
-    console.debug("[Mycelica] Auto-track backend not available");
+    console.debug("[Holerabbit] Auto-track backend not available");
   }
 }
 
@@ -293,14 +293,14 @@ function startAutoTracking() {
     { url: [{ schemes: ["http", "https"] }] }
   );
 
-  console.log("[Mycelica] Auto-tracking started");
+  console.log("[Holerabbit] Auto-tracking started");
 }
 
 function stopAutoTracking() {
   if (navigationListener) {
     browser.webNavigation.onCompleted.removeListener(navigationListener);
     navigationListener = null;
-    console.log("[Mycelica] Auto-tracking stopped");
+    console.log("[Holerabbit] Auto-tracking stopped");
   }
 }
 
@@ -430,4 +430,4 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   }
 });
 
-console.log("[Mycelica] Extension loaded");
+console.log("[Holerabbit] Extension loaded");

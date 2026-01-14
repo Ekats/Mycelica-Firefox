@@ -1,4 +1,4 @@
-// Sidebar script - shows related nodes from Mycelica
+// Sidebar script - shows related nodes from graph
 
 let currentUrl = null;
 let currentTab = null;

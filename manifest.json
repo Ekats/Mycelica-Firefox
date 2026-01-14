@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "Mycelica",
+  "name": "Holerabbit",
   "version": "0.1.0",
   "description": "Capture web pages to your local knowledge graph",
   "author": "Ekats",
@@ -32,12 +32,12 @@
       "32": "icons/icon-32.png",
       "48": "icons/icon-48.png"
     },
-    "default_title": "Mycelica",
+    "default_title": "Holerabbit",
     "default_popup": "popup/popup.html"
   },
   
   "sidebar_action": {
-    "default_title": "Mycelica",
+    "default_title": "Holerabbit",
     "default_panel": "sidebar/sidebar.html",
     "default_icon": "icons/icon-32.png"
   },

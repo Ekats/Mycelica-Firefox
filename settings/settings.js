@@ -11,10 +11,10 @@ async function checkStatus() {
     const response = await browser.runtime.sendMessage({ action: "status" });
     if (response.connected) {
       indicator.classList.add("connected");
-      text.textContent = "Connected to Mycelica";
+      text.textContent = "Connected to Holerabbit";
     } else {
       indicator.classList.remove("connected");
-      text.textContent = "Mycelica not running";
+      text.textContent = "Mycelica app not running";
     }
   } catch (e) {
     indicator.classList.remove("connected");

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Mycelica Firefox Extension — captures web pages to local Mycelica graph.
+Holerabbit Firefox Extension — auto-track browsing sessions to local Mycelica graph.
 
 ## Architecture
 
@@ -9,9 +9,9 @@ Firefox Extension  ──HTTP──►  Mycelica Tauri (localhost:9876)
      │                              │
      ├─ background.js               ├─ /capture (POST)
      │   ├─ manual capture          ├─ /holerabbit/visit (POST)
-     │   └─ auto-tracking           ├─ /search (GET)
-     ├─ popup/                      └─ /status (GET)
-     ├─ sidebar/
+     │   └─ auto-tracking           ├─ /holerabbit/live (GET)
+     ├─ popup/                      ├─ /search (GET)
+     ├─ sidebar/                    └─ /status (GET)
      └─ settings/
 ```
 
@@ -23,6 +23,7 @@ Extension talks to running Mycelica app over HTTP. No cloud, no accounts.
 2. **Auto-tracking** (opt-in) — Automatically track browsing on allowed domains
    - Per-tab navigation tracking (clicked/searched/backtracked)
    - Session management with configurable gap
+   - Syncs with app's live session
    - Default: Wikipedia only, OFF by default
 
 ## Files
@@ -58,7 +59,7 @@ config = {
 about:debugging → This Firefox → Load Temporary Add-on → select manifest.json
 
 # Watch for errors
-Ctrl+Shift+J → Browser Console → filter "Mycelica"
+Ctrl+Shift+J → Browser Console → filter "Holerabbit"
 ```
 
 ## Backend Endpoints
@@ -69,9 +70,12 @@ POST /capture
   Returns: { success: true, nodeId: "..." }
 
 POST /holerabbit/visit
-  Body: { url, referrer, timestamp, tab_id, navigation_type,
+  Body: { url, referrer, timestamp, tab_id, session_id, navigation_type,
           previous_dwell_time_ms, session_gap_minutes, title? }
-  Returns: { success: true }
+  Returns: { success: true, session_name?, is_new_session?, session_id? }
+
+GET /holerabbit/live
+  Returns: { session: { id, title, start_time, item_count, status } | null }
 
 GET /search?q=<query>
   Returns: { results: [{ id, title, type, similarity }] }
@@ -82,7 +86,6 @@ GET /status
 
 ## TODO
 
-- [ ] Implement `/holerabbit/visit` endpoint in Mycelica backend
 - [ ] Native messaging instead of HTTP
 - [ ] Highlight text → create edge to existing node
 - [ ] Show graph connections in sidebar

@@ -1,22 +1,15 @@
-# Mycelica Firefox Extension
+# Holerabbit
 
-Capture web pages to your local [Mycelica](https://github.com/Ekats/Mycelica) knowledge graph.
+Firefox extension for [Mycelica](https://github.com/Ekats/Mycelica) — auto-track your browsing sessions and map navigation paths.
 
 ## Features
 
-- **Right-click capture** — Save any page or selection to your graph
-- **Sidebar** — See related nodes from your graph while browsing
-- **Local only** — Everything stays on your machine
-
-## Holerabbit
-
-Auto-track your browsing sessions and map navigation paths.
-
-- **Opt-in** — OFF by default, enable in Settings
-- **Domain filtering** — Wikipedia only by default, or configure custom domains
+- **Auto-tracking** — Automatically track browsing on Wikipedia (opt-in)
+- **Manual capture** — Right-click to save any page or selection
 - **Session sync** — Syncs with live session in Mycelica app
 - **Navigation tracking** — Tracks clicked/searched/backtracked paths
-- **Pause/Resume** — Control tracking from popup or sidebar
+- **Sidebar** — See related nodes from your graph while browsing
+- **Local only** — Everything stays on your machine
 
 ## Requirements
 
@@ -33,9 +26,9 @@ Auto-track your browsing sessions and map navigation paths.
 ## Usage
 
 1. Start Mycelica desktop app
-2. Browse normally
-3. Right-click → "Save to Mycelica" to capture pages
-4. Open sidebar to see related nodes
+2. Enable auto-tracking in Settings (OFF by default)
+3. Browse Wikipedia — visits are tracked automatically
+4. Or right-click → "Save to Holerabbit" to capture manually
 
 ## Status
 

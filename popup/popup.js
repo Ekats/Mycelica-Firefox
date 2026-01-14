@@ -18,7 +18,7 @@ function formatDuration(ms) {
   }
 }
 
-// Check Mycelica connection status and session info
+// Check connection status and session info
 async function checkStatus() {
   const statusEl = document.getElementById("status");
   const sessionSection = document.getElementById("session-section");
