@@ -8,6 +8,16 @@ Capture web pages to your local [Mycelica](https://github.com/Ekats/Mycelica) kn
 - **Sidebar** — See related nodes from your graph while browsing
 - **Local only** — Everything stays on your machine
 
+## Holerabbit
+
+Auto-track your browsing sessions and map navigation paths.
+
+- **Opt-in** — OFF by default, enable in Settings
+- **Domain filtering** — Wikipedia only by default, or configure custom domains
+- **Session sync** — Syncs with live session in Mycelica app
+- **Navigation tracking** — Tracks clicked/searched/backtracked paths
+- **Pause/Resume** — Control tracking from popup or sidebar
+
 ## Requirements
 
 - Firefox 91+
