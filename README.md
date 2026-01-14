@@ -28,7 +28,7 @@ Firefox extension for [Mycelica](https://github.com/Ekats/Mycelica) — auto-tra
 1. Start Mycelica desktop app
 2. Enable auto-tracking in Settings (OFF by default)
 3. Browse Wikipedia — visits are tracked automatically
-4. Or right-click → "Save to Holerabbit" to capture manually
+4. Or right-click → "Save Page to Graph" to capture manually
 
 ## Status
 
