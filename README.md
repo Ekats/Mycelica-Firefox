@@ -36,4 +36,4 @@ Firefox extension for [Mycelica](https://github.com/Ekats/Mycelica) — auto-tra
 
 ## License
 
-GPL-3.0
+AGPL-3.0
