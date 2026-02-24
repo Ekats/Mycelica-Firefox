@@ -299,6 +299,62 @@
     .save-btn.saved {
       background: #1a472a;
     }
+
+    /* Pairing section */
+    .pair-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .pair-status .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f87171;
+    }
+
+    .pair-status .dot.paired { background: #4ade80; }
+
+    .pair-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #6366f1;
+      color: white;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+
+    .pair-btn:hover { background: #4f46e5; }
+    .pair-btn:disabled { background: #333; cursor: not-allowed; }
+
+    .pair-btn.danger {
+      background: #7f1d1d;
+    }
+    .pair-btn.danger:hover { background: #991b1b; }
+
+    .key-display {
+      font-family: monospace;
+      font-size: 12px;
+      color: #888;
+      background: #1a1a2e;
+      padding: 6px 10px;
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+
+    .pair-message {
+      font-size: 12px;
+      margin-top: 6px;
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+
+    .pair-message.success { background: #1a472a; color: #4ade80; }
+    .pair-message.error { background: #4a1a1a; color: #f87171; }
   </style>
 </head>
 <body>
@@ -309,6 +365,21 @@
     <div class="status-bar">
       <div class="status-indicator" id="status-indicator"></div>
       <span class="status-text" id="status-text">Checking connection...</span>
+    </div>
+
+    <!-- Connection / Pairing section -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Connection</span>
+      </div>
+      <div class="pair-status">
+        <span class="dot" id="pair-dot"></span>
+        <span id="pair-status-text">Checking...</span>
+      </div>
+      <button class="pair-btn" id="pair-btn" style="display:none;">Pair with Mycelica</button>
+      <button class="pair-btn danger" id="unpair-btn" style="display:none;">Clear Key (Unpair)</button>
+      <div class="key-display" id="key-display" style="display:none;"></div>
+      <div class="pair-message" id="pair-message" style="display:none;"></div>
     </div>
 
     <!-- Auto-tracking section -->

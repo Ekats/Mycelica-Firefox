@@ -28,16 +28,64 @@ browser.storage.local.get("mycelicaConfig").then(result => {
 });
 
 // =============================================================================
+// AUTHENTICATED FETCH WRAPPER
+// =============================================================================
+
+/**
+ * Fetch wrapper that adds Bearer token auth to all Mycelica requests.
+ * On 401, clears the stored key (forces re-pair).
+ */
+async function mycelicaFetch(path, options = {}) {
+  const stored = await browser.storage.local.get("mycelicaApiKey");
+  const key = stored.mycelicaApiKey;
+  const headers = { ...options.headers, "Content-Type": "application/json" };
+  if (key) {
+    headers["Authorization"] = `Bearer ${key}`;
+  }
+  const resp = await fetch(`${MYCELICA_URL}${path}`, { ...options, headers });
+  if (resp.status === 401 && key) {
+    // Key is invalid — clear it so UI shows "not paired"
+    await browser.storage.local.remove("mycelicaApiKey");
+    console.warn("[Holerabbit] API key rejected (401), cleared stored key");
+  }
+  return resp;
+}
+
+// =============================================================================
+// PAIRING FLOW
+// =============================================================================
+
+async function pairWithMycelica() {
+  try {
+    // /pair does NOT require auth — it's the bootstrap endpoint
+    const resp = await fetch(`${MYCELICA_URL}/pair`, { method: "POST" });
+    if (resp.ok) {
+      const data = await resp.json();
+      await browser.storage.local.set({ mycelicaApiKey: data.key });
+      return { ok: true };
+    } else if (resp.status === 429) {
+      return { ok: false, error: "Try again in 30 seconds" };
+    } else {
+      return { ok: false, error: "Rejected -- approve in Mycelica app" };
+    }
+  } catch (e) {
+    return { ok: false, error: "Mycelica app not running" };
+  }
+}
+
+// =============================================================================
 // MANUAL CAPTURE (existing functionality)
 // =============================================================================
 
 async function captureToMycelica(data) {
   try {
-    const response = await fetch(`${MYCELICA_URL}/capture`, {
+    const response = await mycelicaFetch("/capture", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
+    if (response.status === 401) {
+      return { success: false, error: "Not paired -- open settings to pair" };
+    }
     const result = await response.json();
     return { success: true, method: "http", ...result };
   } catch (e) {
@@ -155,7 +203,7 @@ function generateSessionId() {
 // Sync with app's live session
 async function syncLiveSession() {
   try {
-    const response = await fetch(`${MYCELICA_URL}/holerabbit/live`);
+    const response = await mycelicaFetch("/holerabbit/live");
     if (response.ok) {
       const data = await response.json();
       if (data.session) {
@@ -245,9 +293,8 @@ async function recordVisit(details) {
 
   // Send to backend
   try {
-    const response = await fetch(`${MYCELICA_URL}/holerabbit/visit`, {
+    const response = await mycelicaFetch("/holerabbit/visit", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
@@ -314,6 +361,23 @@ browser.tabs.onRemoved.addListener((tabId) => {
 // =============================================================================
 
 browser.runtime.onMessage.addListener(async (message, sender) => {
+  // Pairing
+  if (message.action === "pair") {
+    return pairWithMycelica();
+  }
+
+  // Auth status
+  if (message.action === "getAuthStatus") {
+    const stored = await browser.storage.local.get("mycelicaApiKey");
+    return { paired: !!stored.mycelicaApiKey };
+  }
+
+  // Clear stored key (unpair)
+  if (message.action === "clearApiKey") {
+    await browser.storage.local.remove("mycelicaApiKey");
+    return { success: true };
+  }
+
   // Manual capture
   if (message.action === "capture") {
     return captureToMycelica(message.data);
@@ -322,7 +386,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   // Search
   if (message.action === "search") {
     try {
-      const response = await fetch(`${MYCELICA_URL}/search?q=${encodeURIComponent(message.query)}`);
+      const response = await mycelicaFetch(`/search?q=${encodeURIComponent(message.query)}`);
       return await response.json();
     } catch (e) {
       return { error: e.message };
@@ -332,7 +396,10 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
   // Status check
   if (message.action === "status") {
     try {
-      const response = await fetch(`${MYCELICA_URL}/status`);
+      const response = await mycelicaFetch("/status");
+      if (response.status === 401) {
+        return { connected: false, authError: true };
+      }
       const data = await response.json();
 
       // Sync with app's live session
@@ -392,7 +459,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     }
 
     try {
-      const response = await fetch(`${MYCELICA_URL}/holerabbit/session/${currentSession.id}/pause`, {
+      const response = await mycelicaFetch(`/holerabbit/session/${currentSession.id}/pause`, {
         method: "POST"
       });
       if (response.ok) {
@@ -414,7 +481,7 @@ browser.runtime.onMessage.addListener(async (message, sender) => {
     }
 
     try {
-      const response = await fetch(`${MYCELICA_URL}/holerabbit/session/${currentSession.id}/resume`, {
+      const response = await mycelicaFetch(`/holerabbit/session/${currentSession.id}/resume`, {
         method: "POST"
       });
       if (response.ok) {

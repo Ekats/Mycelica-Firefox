@@ -244,6 +244,30 @@
     }
 
     .note-input::placeholder { color: #666; }
+
+    .pair-bar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: #4a1a1a;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #f87171;
+    }
+
+    .pair-bar.visible { display: flex; }
+
+    .pair-bar button {
+      padding: 4px 10px;
+      font-size: 11px;
+      margin: 0;
+      width: auto;
+      background: #6366f1;
+    }
+
+    .pair-bar button:hover { background: #4f46e5; }
   </style>
 </head>
 <body>
@@ -251,6 +275,12 @@
     <h1>Holerabbit</h1>
     <span id="status" class="status disconnected">Checking...</span>
     <button class="settings-btn" id="open-settings" title="Settings">Settings</button>
+  </div>
+
+  <!-- Pairing prompt (shown when not paired) -->
+  <div class="pair-bar" id="pair-bar">
+    <span id="pair-bar-text">Not paired</span>
+    <button id="pair-btn-popup">Pair</button>
   </div>
 
   <!-- Session status (visible when auto-tracking enabled) -->

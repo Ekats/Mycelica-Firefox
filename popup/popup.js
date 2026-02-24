@@ -18,16 +18,22 @@ function formatDuration(ms) {
   }
 }
 
-// Check connection status and session info
+// Check connection status, session info, and pairing
 async function checkStatus() {
   const statusEl = document.getElementById("status");
   const sessionSection = document.getElementById("session-section");
+  const pairBar = document.getElementById("pair-bar");
+  const pairBarText = document.getElementById("pair-bar-text");
+
+  // Check pairing status first
+  const authResponse = await browser.runtime.sendMessage({ action: "getAuthStatus" });
 
   const response = await browser.runtime.sendMessage({ action: "status" });
 
   if (response.connected) {
     statusEl.textContent = "Connected";
     statusEl.className = "status connected";
+    pairBar.classList.remove("visible");
 
     // Show session section if auto-tracking is enabled
     if (response.autoTrack && response.session) {
@@ -36,10 +42,38 @@ async function checkStatus() {
     } else {
       sessionSection.classList.remove("visible");
     }
+  } else if (response.authError || !authResponse.paired) {
+    // Not paired or key expired
+    statusEl.textContent = "Not paired";
+    statusEl.className = "status disconnected";
+    sessionSection.classList.remove("visible");
+
+    pairBarText.textContent = response.authError ? "Key expired -- re-pair needed" : "Not paired";
+    pairBar.classList.add("visible");
   } else {
     statusEl.textContent = "Not running";
     statusEl.className = "status disconnected";
     sessionSection.classList.remove("visible");
+    pairBar.classList.remove("visible");
+  }
+}
+
+// Handle pair button in popup
+async function handlePairPopup() {
+  const pairBtn = document.getElementById("pair-btn-popup");
+  const pairBarText = document.getElementById("pair-bar-text");
+
+  pairBtn.disabled = true;
+  pairBarText.textContent = "Waiting for approval...";
+
+  const result = await browser.runtime.sendMessage({ action: "pair" });
+
+  if (result.ok) {
+    pairBarText.textContent = "Paired!";
+    setTimeout(() => checkStatus(), 500);
+  } else {
+    pairBarText.textContent = result.error || "Pairing failed";
+    pairBtn.disabled = false;
   }
 }
 
@@ -191,6 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("session-header").addEventListener("click", toggleSession);
   document.getElementById("pause-btn").addEventListener("click", pauseSession);
   document.getElementById("resume-btn").addEventListener("click", resumeSession);
+  document.getElementById("pair-btn-popup").addEventListener("click", handlePairPopup);
 
   // Refresh session every 2 seconds
   sessionRefreshInterval = setInterval(refreshSession, 2000);
